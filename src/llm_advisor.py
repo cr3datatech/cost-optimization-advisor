@@ -1,22 +1,22 @@
 import os
 from pathlib import Path
 from typing import Optional
-import anthropic
+import openai
 
 
 _PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "cost_narrative.txt"
-_client: Optional[anthropic.Anthropic] = None
+_client: Optional[openai.OpenAI] = None
 
 
-def _get_client() -> anthropic.Anthropic:
+def _get_client() -> openai.OpenAI:
     global _client
     if _client is None:
-        _client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+        _client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     return _client
 
 
 def generate_recommendation(anomaly: dict) -> str:
-    """Call Claude to generate a human-readable cost narrative for an anomaly."""
+    """Call OpenAI to generate a human-readable cost narrative for an anomaly."""
     template = _PROMPT_PATH.read_text()
     prompt = template.format(
         service=anomaly["service"],
@@ -29,13 +29,10 @@ def generate_recommendation(anomaly: dict) -> str:
     )
 
     client = _get_client()
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
+    response = client.chat.completions.create(
+        model="gpt-4o",
         max_tokens=512,
         messages=[{"role": "user", "content": prompt}],
     )
 
-    return next(
-        (block.text for block in response.content if block.type == "text"),
-        "",
-    )
+    return response.choices[0].message.content or ""
