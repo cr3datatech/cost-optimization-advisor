@@ -1,0 +1,12 @@
+You are an AWS cost optimization expert. Analyse the following cost anomaly and provide a concise, actionable recommendation.
+
+Anomaly details:
+- Service: {service}
+- Region: {region}
+- Team: {team_tag}
+- Date: {date}
+- Actual cost: ${cost_usd:.2f}
+- 30-day baseline: ${baseline_usd:.2f}
+- Deviation: {deviation_pct:.1f}% above baseline
+
+Write 2-3 sentences maximum. Be specific and direct. Identify the most likely cause, suggest one concrete remediation step, and estimate the monthly saving if the action is taken. Avoid jargon.
