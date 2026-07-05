@@ -53,7 +53,7 @@ class TestLoadLatestBillingData:
         csv_bytes = _make_csv_bytes(rows)
         mock_s3 = _make_s3_mock(csv_bytes)
 
-        with patch("src.ingestion.boto3.client", return_value=mock_s3):
+        with patch("src.ingestion.client", return_value=mock_s3):
             from src.ingestion import load_latest_billing_data
             df = load_latest_billing_data()
 
@@ -83,7 +83,7 @@ class TestLoadLatestBillingData:
         csv_bytes = _make_csv_bytes(rows)
         mock_s3 = _make_s3_mock(csv_bytes)
 
-        with patch("src.ingestion.boto3.client", return_value=mock_s3):
+        with patch("src.ingestion.client", return_value=mock_s3):
             from src.ingestion import load_latest_billing_data
             df = load_latest_billing_data()
 
@@ -94,7 +94,7 @@ class TestLoadLatestBillingData:
         mock_s3 = MagicMock()
         mock_s3.list_objects_v2.return_value = {"Contents": []}
 
-        with patch("src.ingestion.boto3.client", return_value=mock_s3):
+        with patch("src.ingestion.client", return_value=mock_s3):
             from src.ingestion import load_latest_billing_data
             with pytest.raises(ValueError, match="No objects found"):
                 load_latest_billing_data()
@@ -109,7 +109,7 @@ class TestLoadLatestBillingData:
             ]
         }
 
-        with patch("src.ingestion.boto3.client", return_value=mock_s3):
+        with patch("src.ingestion.client", return_value=mock_s3):
             from src.ingestion import load_latest_billing_data
             with pytest.raises(ValueError, match="No CSV files"):
                 load_latest_billing_data()
@@ -138,7 +138,7 @@ class TestLoadLatestBillingData:
         }
         mock_s3.get_object.return_value = {"Body": io.BytesIO(csv_bytes)}
 
-        with patch("src.ingestion.boto3.client", return_value=mock_s3):
+        with patch("src.ingestion.client", return_value=mock_s3):
             from src.ingestion import load_latest_billing_data
             load_latest_billing_data()
 

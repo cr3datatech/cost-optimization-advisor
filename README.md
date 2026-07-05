@@ -31,10 +31,21 @@ EventBridge (daily cron)
 
 ## Prerequisites
 
-- AWS account with S3 bucket containing AWS Cost & Usage Report CSVs
-- Anthropic API key (https://console.anthropic.com)
-- Slack Incoming Webhook URL (create via Slack App settings)
-- Python 3.12
+Assumed to be installed and configured before using this project:
+
+- **Python 3.12+** with `pip`
+- **Project dependencies:** `pip install -r requirements.txt`
+- **AWS CLI profile** in `~/.aws/config` (referenced via `AWS_PROFILE` in `.env`)
+- **AWS account** with permissions to create S3, IAM, Lambda, and EventBridge resources
+- **S3 bucket** for AWS Cost & Usage Report CSVs (or let `manage.py infra` create one)
+- **OpenAI API key** and **Slack Incoming Webhook URL**
+
+For Lambda deployment, Python dependencies are **not** installed by this tool. Either:
+
+- attach a Lambda layer that provides `requirements.txt` packages, or
+- set `LAMBDA_PACKAGE_PATH` / `--package` to a zip you built yourself
+
+Set `LAMBDA_RUNTIME` in `.env` if not using `python3.12`.
 
 ---
 
@@ -48,17 +59,11 @@ cd cost-optimization-advisor
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Create .env file
-cat > .env <<EOF
-AWS_BILLING_BUCKET=your-billing-bucket-name
-AWS_REGION=eu-west-1
-ANTHROPIC_API_KEY=sk-ant-...
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
-TIMESTREAM_DATABASE=cost-advisor
-TIMESTREAM_TABLE=billing-costs
-EOF
+# 3. Create .env file (copy from .env.example)
+cp .env.example .env
+# Edit .env — set AWS_PROFILE to a profile from ~/.aws/config
 
-# 4. Run locally (requires AWS credentials in environment or ~/.aws)
+# 4. Run locally (uses AWS_PROFILE from .env when set)
 python -c "from lambda_handler import handler; handler({}, None)"
 
 # 5. Run tests
@@ -68,7 +73,52 @@ pytest tests/ -v
 
 ---
 
-## AWS deployment steps
+## AWS deployment
+
+Use `scripts/manage.py` for infrastructure, analysis, and Lambda deployment.
+
+### A. Deploy infrastructure
+
+Creates the S3 billing bucket (if missing) and Lambda IAM role, then prints values for `.env`:
+
+```bash
+python scripts/manage.py infra
+```
+
+Requires `AWS_PROFILE`, `AWS_BILLING_BUCKET`, and `AWS_REGION` in `.env`. Your profile needs
+`iam:CreateRole`, `iam:PutRolePolicy`, and `s3:CreateBucket` permissions.
+
+### B. Analyse billing data
+
+Fetch the latest CSV from S3 and run anomaly detection locally:
+
+```bash
+python scripts/manage.py analyze
+python scripts/manage.py analyze --output report.json
+python scripts/manage.py analyze --with-narratives
+python scripts/manage.py analyze --local path/to/billing.csv
+```
+
+### C. Deploy Lambda
+
+Deploys application source to Lambda. Dependencies must already be available via a Lambda layer or `LAMBDA_PACKAGE_PATH`:
+
+```bash
+python scripts/manage.py deploy
+python scripts/manage.py deploy --package path/to/lambda-full.zip
+```
+
+Set up the daily schedule (Lambda must already exist):
+
+```bash
+python scripts/manage.py setup-schedule
+```
+
+`scripts/deploy.py` remains as a backward-compatible alias for `manage.py deploy`.
+
+### Manual deployment (aws CLI)
+
+If you prefer raw CLI commands, pass `--profile` to each `aws` command:
 
 ```bash
 # 1. Zip the Lambda package

@@ -30,7 +30,7 @@ def generate_recommendation(anomaly: dict) -> str:
 
     client = _get_client()
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4.1",
         max_tokens=512,
         messages=[{"role": "user", "content": prompt}],
     )

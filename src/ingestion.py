@@ -1,7 +1,10 @@
 import os
 import io
-import boto3
+from pathlib import Path
+
 import pandas as pd
+
+from src.aws_session import client
 
 
 def load_latest_billing_data() -> pd.DataFrame:
@@ -9,7 +12,7 @@ def load_latest_billing_data() -> pd.DataFrame:
     bucket = os.environ["AWS_BILLING_BUCKET"]
     region = os.environ.get("AWS_REGION", "eu-west-1")
 
-    s3 = boto3.client("s3", region_name=region)
+    s3 = client("s3", region_name=region)
 
     response = s3.list_objects_v2(Bucket=bucket)
     objects = response.get("Contents", [])
@@ -21,17 +24,33 @@ def load_latest_billing_data() -> pd.DataFrame:
         raise ValueError(f"No CSV files found in bucket: {bucket}")
 
     latest = max(csv_objects, key=lambda o: o["LastModified"])
-    key = latest["Key"]
+    return load_billing_data_from_key(bucket, latest["Key"], s3_client=s3)
 
-    obj = s3.get_object(Bucket=bucket, Key=key)
+
+def load_billing_data_from_key(
+    bucket: str,
+    key: str,
+    s3_client=None,
+) -> pd.DataFrame:
+    """Download a specific billing CSV from S3."""
+    if s3_client is None:
+        region = os.environ.get("AWS_REGION", "eu-west-1")
+        s3_client = client("s3", region_name=region)
+
+    obj = s3_client.get_object(Bucket=bucket, Key=key)
     raw = obj["Body"].read()
+    return _parse_billing_csv(raw)
 
+
+def load_billing_data_from_file(path: Path) -> pd.DataFrame:
+    """Load a billing CSV from the local filesystem."""
+    return _parse_billing_csv(path.read_bytes())
+
+
+def _parse_billing_csv(raw: bytes) -> pd.DataFrame:
     df = pd.read_csv(io.BytesIO(raw))
-
     df = _normalise(df)
-    df = df.dropna(subset=["cost_usd"])
-
-    return df
+    return df.dropna(subset=["cost_usd"])
 
 
 def _normalise(df: pd.DataFrame) -> pd.DataFrame:

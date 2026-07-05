@@ -1,22 +1,33 @@
 # Running the Cost Optimization Advisor
 
+## Prerequisites
+
+- Python 3.12+ and `pip install -r requirements.txt`
+- AWS profile configured in `~/.aws/config`
+- `.env` file (see `.env.example`)
+
 ## How to run locally
 
 ```bash
-# 1. Install dependencies
-pip install -r requirements.txt
-
-# 2. Create a .env file with your credentials
+# 1. Create a .env file with your credentials (see .env.example)
+AWS_PROFILE=your-aws-profile
 AWS_BILLING_BUCKET=your-s3-bucket-name
 AWS_REGION=eu-west-1
-ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
 
-# 3. Make sure your AWS credentials are configured
-aws configure   # or set AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY env vars
+# 3. List profiles from ~/.aws/config
+python scripts/manage.py list-profiles
 
-# 4. Run the Lambda handler directly
-python -c "from lambda_handler import handler; handler({}, None)"
+# 4. Provision AWS infrastructure (S3 bucket + IAM role)
+python scripts/manage.py infra
+
+# 5. Analyse billing data from S3 (after CUR export arrives)
+python scripts/manage.py analyze
+
+# 6. Deploy Lambda
+python scripts/manage.py deploy
+python scripts/manage.py setup-schedule   # optional daily schedule
 ```
 
 ## Run tests (no credentials needed)
@@ -43,11 +54,7 @@ python3 -m pytest tests/ -v
 
 5. **Timestream integration is absent** — `TIMESTREAM_DATABASE` and `TIMESTREAM_TABLE` env vars are declared but never used. The spec mentions writing to Timestream for time-series storage but it wasn't implemented.
 
-6. **No sample/mock CSV** — there's no test fixture file to do a full local dry-run without a real S3 bucket. You'd need to either point at a real bucket or add a `--local` mode that reads a local CSV.
-
-7. **No Lambda deployment packaging** — no `Makefile` or script to zip the function with dependencies (Lambda needs a deployment package, not just source files).
-
-8. **Dependencies aren't Lambda-compatible** — `scikit-learn`, `pandas`, and `scipy` are large and need to be bundled as a Lambda Layer or built for `linux/amd64`. They won't work if you just zip the source.
+6. **No sample billing CSV in repo** — use `python scripts/manage.py analyze --local path/to/billing.csv` for offline testing.
 
 ---
 
